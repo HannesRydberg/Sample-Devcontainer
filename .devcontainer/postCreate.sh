@@ -3,17 +3,84 @@
 set -euo pipefail
 
 # ── Load secrets ──────────────────────────────────────────────────────────────
-# Source the bind-mounted .env for this script and wire it into .bashrc so every
-# future terminal session picks it up too. No secret values are ever copied.
-if [ -f /run/secrets/dev.env ]; then
-    set -a
-    # shellcheck source=/dev/null
-    source /run/secrets/dev.env
-    set +a
+load_env_file_safely() {
+    local env_file="$1"
+    local line key value
+
+    [ -f "$env_file" ] || return 0
+
+    while IFS= read -r line || [ -n "$line" ]; do
+        [[ "$line" =~ ^[[:space:]]*$ ]] && continue
+        [[ "$line" =~ ^[[:space:]]*# ]] && continue
+
+        if [[ "$line" =~ ^([A-Za-z_][A-Za-z0-9_]*)=(.*)$ ]]; then
+            key="${BASH_REMATCH[1]}"
+            value="${BASH_REMATCH[2]}"
+
+            if [[ "$value" =~ ^\"(.*)\"$ ]]; then
+                value="${BASH_REMATCH[1]}"
+            elif [[ "$value" =~ ^\'(.*)\'$ ]]; then
+                value="${BASH_REMATCH[1]}"
+            fi
+
+            export "$key=$value"
+        else
+            echo "⚠️  Skipping malformed env line in $env_file"
+        fi
+    done < "$env_file"
+}
+
+load_env_file_safely /run/secrets/dev.env
+
+bashrc="$HOME/.bashrc"
+managed_start='# >>> devcontainer safe env loader >>>'
+managed_end='# <<< devcontainer safe env loader <<<'
+legacy_hook='if [ -f /run/secrets/dev.env ]; then set -a; s'"ource /run/secrets/dev.env; set +a; fi"
+
+if [ -f "$bashrc" ]; then
+    tmp_bashrc="${bashrc}.tmp"
+    awk -v legacy="$legacy_hook" -v start="$managed_start" -v end="$managed_end" '
+        $0 == legacy { next }
+        $0 == start { in_block=1; next }
+        $0 == end { in_block=0; next }
+        !in_block { print }
+    ' "$bashrc" > "$tmp_bashrc"
+    mv "$tmp_bashrc" "$bashrc"
 fi
-grep -q 'dev.env' "$HOME/.bashrc" 2>/dev/null \
-    || echo 'if [ -f /run/secrets/dev.env ]; then set -a; source /run/secrets/dev.env; set +a; fi' \
-        >> "$HOME/.bashrc"
+
+cat >> "$bashrc" <<'EOF'
+
+# >>> devcontainer safe env loader >>>
+load_env_file_safely() {
+    local env_file="$1"
+    local line key value
+
+    [ -f "$env_file" ] || return 0
+
+    while IFS= read -r line || [ -n "$line" ]; do
+        [[ "$line" =~ ^[[:space:]]*$ ]] && continue
+        [[ "$line" =~ ^[[:space:]]*# ]] && continue
+
+        if [[ "$line" =~ ^([A-Za-z_][A-Za-z0-9_]*)=(.*)$ ]]; then
+            key="${BASH_REMATCH[1]}"
+            value="${BASH_REMATCH[2]}"
+
+            if [[ "$value" =~ ^\"(.*)\"$ ]]; then
+                value="${BASH_REMATCH[1]}"
+            elif [[ "$value" =~ ^\'(.*)\'$ ]]; then
+                value="${BASH_REMATCH[1]}"
+            fi
+
+            export "$key=$value"
+        else
+            echo "⚠️  Skipping malformed env line in $env_file"
+        fi
+    done < "$env_file"
+}
+
+load_env_file_safely /run/secrets/dev.env
+# <<< devcontainer safe env loader <<<
+EOF
 
 echo ""
 echo "🔧 Running post-create setup..."
@@ -58,36 +125,64 @@ done
 docker info >/dev/null 2>&1 && echo "   ✅ Docker daemon is running"
 
 # ── Load per-repo dev skills ─────────────────────────────────────────────────
-# Reads the git-ignored .copilot-skills file at the repo root. Each line names a
-# subdirectory under ~/.config/copilot-dev-skills/ on the host. Every skill folder
-# (containing a SKILL.md) found there is copied into ~/.copilot/skills/ so Copilot
-# picks it up. The file itself is never committed — each developer maintains their own.
+HOST_COPILOT_SKILLS="/mnt/host-inputs/copilot-skills"
+HOST_AGENT_SKILLS="/mnt/host-inputs/agent-skills"
+HOST_SKILLS_STAGING="/mnt/host-inputs/copilot-dev-skills"
 SKILLS_CONFIG="/workspace/.copilot-skills"
-SKILLS_STAGING="$HOME/.config/copilot-dev-skills"
-SKILLS_DEST="$HOME/.copilot/skills"
-if [ -f "$SKILLS_CONFIG" ] && [ -d "$SKILLS_STAGING" ]; then
-    echo "🧠 Loading dev skills from .copilot-skills..."
-    mkdir -p "$SKILLS_DEST"
-    while IFS= read -r set_name || [ -n "$set_name" ]; do
-        # Skip blank lines and comments
-        [[ -z "$set_name" || "$set_name" == \#* ]] && continue
-        set_dir="$SKILLS_STAGING/$set_name"
-        if [ ! -d "$set_dir" ]; then
-            echo "   ⚠️  Skill set '$set_name' not found at $set_dir — skipping"
-            continue
-        fi
-        count=0
-        for skill_dir in "$set_dir"/*/; do
-            [ -f "$skill_dir/SKILL.md" ] || continue
-            skill_name="$(basename "$skill_dir")"
-            cp -r "$skill_dir" "$SKILLS_DEST/$skill_name"
-            count=$((count + 1))
-        done
-        echo "   ✅ $set_name — $count skill(s) loaded"
-    done < "$SKILLS_CONFIG"
+ACTIVE_COPILOT_SKILLS="$HOME/.copilot/skills"
+ACTIVE_AGENT_SKILLS="$HOME/.agents/skills"
+
+sync_skill_tree() {
+    local src_root="$1"
+    local dest_root="$2"
+    local skill_dir skill_name
+
+    [ -d "$src_root" ] || return 0
+
+    shopt -s nullglob
+    for skill_dir in "$src_root"/*/; do
+        [ -f "$skill_dir/SKILL.md" ] || continue
+        skill_name="$(basename "$skill_dir")"
+        rm -rf "$dest_root/$skill_name"
+        cp -R "$skill_dir" "$dest_root/$skill_name"
+    done
+    shopt -u nullglob
+}
+
+skill_inputs_ready() {
+    [ -d "$HOST_COPILOT_SKILLS" ] && [ -r "$HOST_COPILOT_SKILLS" ] || return 1
+    [ -d "$HOST_AGENT_SKILLS" ] && [ -r "$HOST_AGENT_SKILLS" ] || return 1
+
+    if [ -f "$SKILLS_CONFIG" ]; then
+        [ -d "$HOST_SKILLS_STAGING" ] && [ -r "$HOST_SKILLS_STAGING" ] || return 1
+    fi
+}
+
+if ! skill_inputs_ready; then
+    echo "⚠️  Hardened skill-loading requires the /mnt/host-inputs mounts."
+    echo "   Rebuild the container before rerunning postCreate.sh so active skill paths stay untouched."
 else
-    [ ! -f "$SKILLS_CONFIG" ] && echo "ℹ️  No .copilot-skills file found — skipping dev skills"
-    [ ! -d "$SKILLS_STAGING" ] && echo "ℹ️  ~/.config/copilot-dev-skills not found — skipping dev skills"
+    echo "🧠 Refreshing container-local skills from read-only host inputs..."
+    rm -rf "$ACTIVE_COPILOT_SKILLS" "$ACTIVE_AGENT_SKILLS"
+    mkdir -p "$ACTIVE_COPILOT_SKILLS" "$ACTIVE_AGENT_SKILLS"
+
+    sync_skill_tree "$HOST_COPILOT_SKILLS" "$ACTIVE_COPILOT_SKILLS"
+    sync_skill_tree "$HOST_AGENT_SKILLS" "$ACTIVE_AGENT_SKILLS"
+
+    if [ -f "$SKILLS_CONFIG" ] && [ -d "$HOST_SKILLS_STAGING" ]; then
+        while IFS= read -r set_name || [ -n "$set_name" ]; do
+            [[ -z "$set_name" || "$set_name" == \#* ]] && continue
+            set_dir="$HOST_SKILLS_STAGING/$set_name"
+            if [ ! -d "$set_dir" ]; then
+                echo "   ⚠️  Skill set '$set_name' not found at $set_dir — skipping"
+                continue
+            fi
+            sync_skill_tree "$set_dir" "$ACTIVE_COPILOT_SKILLS"
+        done < "$SKILLS_CONFIG"
+    else
+        [ ! -f "$SKILLS_CONFIG" ] && echo "ℹ️  No .copilot-skills file found — skipping repo skill import"
+        [ ! -d "$HOST_SKILLS_STAGING" ] && echo "ℹ️  Host copilot-dev-skills staging directory not found — skipping repo skill import"
+    fi
 fi
 
 # ── Harden sudo (must be last — setup above still needs it) ──────────────────
@@ -120,6 +215,7 @@ echo ""
 echo "📋 Quick Start"
 echo "  Verify DinD:           docker run --rm hello-world"
 echo "  Copilot CLI:           copilot auth login"
+echo "  Skill/config changes: rebuild the devcontainer to refresh container-local loaded copies"
 echo ""
 echo "💡 First time? On your Mac (one-time host setup):"
 echo "  mkdir -p ~/.copilot/skills ~/.agents/skills ~/.config/copilot-dev-skills ~/.config/dev"

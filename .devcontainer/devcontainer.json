@@ -52,50 +52,26 @@
         },
         // Named volume for all Copilot data — keeps session DB, WAL files, logs, and
         // command history off the macOS bind-mount layer (VirtioFS fsync is very slow).
-        // Skills are overlaid below via a targeted bind mount so host edits are live.
-        // ⚠️  Auth state is container-local: run `copilot auth login` after first rebuild.
+        // Host-managed Copilot skills are mounted read-only as inputs.
+        // postCreate.sh copies them into container-local active directories.
+        // If you change host skills/config and want the container-local loaded copies
+        // refreshed, rebuild the devcontainer.
         {
             "source": "devcontainer-copilot-data-${devcontainerId}",
             "target": "/home/vscode/.copilot",
             "type": "volume"
         },
-        // Bind-mount just ~/.copilot/skills so adding/editing skills on the host is
-        // immediately reflected inside the container without a rebuild.
-        // Run once on your Mac before first open:
-        //   mkdir -p ~/.copilot/skills ~/.agents/skills ~/.config/copilot-dev-skills
-        {
-            "source": "${localEnv:HOME}/.copilot/skills",
-            "target": "/home/vscode/.copilot/skills",
-            "type": "bind"
-        },
-        {
-            "source": "${localEnv:HOME}/.agents/skills",
-            "target": "/home/vscode/.agents/skills",
-            "type": "bind"
-        },
-        // Per-developer skill sets for this repo. Organised as subdirectories under
-        // ~/.config/copilot-dev-skills/ on the host. List which sets to load in the
-        // git-ignored .copilot-skills file at the repo root.
-        // One-time host setup: mkdir -p ~/.config/copilot-dev-skills
-        {
-            "source": "${localEnv:HOME}/.config/copilot-dev-skills",
-            "target": "/home/vscode/.config/copilot-dev-skills",
-            "type": "bind"
-        },
-        // Secrets file — bind-mounted read-only so postCreate.sh can source it into
-        // every terminal session without ever passing secrets as Docker env vars.
-        // Stored outside the repo (~/.config/dev/dev.env) so it is never committed.
-        // One-time host setup: mkdir -p ~/.config/dev && cp .env.example ~/.config/dev/dev.env
-        {
-            "source": "${localEnv:HOME}/.config/dev/dev.env",
-            "target": "/run/secrets/dev.env",
-            "type": "bind"
-        }
+        "type=bind,source=${localEnv:HOME}/.copilot/skills,target=/mnt/host-inputs/copilot-skills,readonly",
+        "type=bind,source=${localEnv:HOME}/.agents/skills,target=/mnt/host-inputs/agent-skills,readonly",
+        "type=bind,source=${localEnv:HOME}/.config/copilot-dev-skills,target=/mnt/host-inputs/copilot-dev-skills,readonly",
+        // Secrets file — bind-mounted read-only so setup can read values
+        // without exposing them as Docker env vars or allowing writes back to the host.
+        "type=bind,source=${localEnv:HOME}/.config/dev/dev.env,target=/run/secrets/dev.env,readonly"
     ],
     // ======================== Runtime ========================
     // Secrets are NOT passed as Docker env vars — doing so stores them in the container
     // config and makes them visible via `docker inspect` / Docker Desktop Inspect tab.
-    // Instead, /run/secrets/dev.env is bind-mounted read-only and sourced by postCreate.sh.
+    // Instead, /run/secrets/dev.env is bind-mounted read-only and sourced by setup.
     "init": true,
     "remoteUser": "vscode",
     "containerEnv": {
