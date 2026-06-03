@@ -53,6 +53,8 @@ Before the container starts, the bind-mounted host paths must exist: `~/.copilot
 
 If `~/.config/dev/dev.env` exists but does not contain a token yet, the container still starts, and you can authenticate Copilot CLI manually inside it.
 
+Host skills and dev skill staging paths are treated as read-only inputs. The container loads active skill copies into container-local directories during setup. If you change host skills or related config and want those changes reflected inside the container, rebuild the devcontainer.
+
 ## Daily workflow
 
 For the common flow, run `dev-up` once to build and start the container, then `dev-bash` to open a shell inside it, and finally `copilot` to start the CLI.
