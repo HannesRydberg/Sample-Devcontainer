@@ -73,6 +73,7 @@
     // config and makes them visible via `docker inspect` / Docker Desktop Inspect tab.
     // Instead, /run/secrets/dev.env is bind-mounted read-only and sourced by setup.
     "init": true,
+    "initializeCommand": "node .devcontainer/initialize-host-paths.mjs",
     "remoteUser": "vscode",
     "containerEnv": {
         "DOTNET_NOLOGO": "true",
