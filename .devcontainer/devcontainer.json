@@ -1,109 +1,90 @@
-// .devcontainer/devcontainer.json
 {
-    "name": "DevContainer (AI + DinD)",
-    "build": {
-        "dockerfile": "Dockerfile",
-        "context": ".."
+  "name": "Ubuntu DevContainer (Copilot + DinD)",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": "."
+  },
+  // ======================== Features ========================
+  "features": {
+    // Docker-in-Docker — full isolated dockerd.
+    // "moby": true is REQUIRED to avoid TestContainers .NET NullReferenceException.
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+      "moby": true,
+      "version": "latest",
+      "enableNonRootDocker": true,
+      "installDockerBuildx": true,
+      "dockerDashComposeVersion": "v2",
+      // Pin the inner dockerd's bridge/network pool OFF the host bridge range
+      // (172.17.0.0/16). Without this, a startup race lets the inner docker0
+      // grab 172.17.0.1 — the SAME IP as the container's default gateway — so
+      // the kernel treats the gateway as a local address and ~50% of new
+      // outbound connections black-hole to loopback (5s+ stalls, intermittent
+      // per container). 172.20.0.0/16 cannot collide with the host bridge.
+      "dockerDefaultAddressPool": "base=172.20.0.0/16,size=24"
     },
-    // ======================== Features ========================
-    "features": {
-        // Docker-in-Docker — full isolated dockerd (rootless disabled: uses standard
-        // root dockerd + socket group access, avoiding slirp4netns network slowness).
-        "ghcr.io/devcontainers/features/docker-in-docker:2": {
-            "moby": true,
-            "version": "latest",
-            "enableNonRootDocker": false,
-            "installDockerBuildx": true,
-            "dockerDashComposeVersion": "v2"
-        },
-        // Node.js 24 — required by Copilot CLI
-        "ghcr.io/devcontainers/features/node:1": {
-            "version": "24"
-        },
-        // Language runtimes
-        "ghcr.io/devcontainers/features/dotnet:2": { "version": "latest" },
-        "ghcr.io/devcontainers/features/python:1": { "version": "latest" },
-        "ghcr.io/devcontainers/features/go:1": { "version": "latest" },
-        "ghcr.io/devcontainers/features/java:1": { "version": "latest" },
-        // GitHub Copilot CLI — official devcontainers feature
-        "ghcr.io/devcontainers/features/copilot-cli:1": {}
+    // Node.js — required runtime for Copilot CLI
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "24"
     },
-    // Node.js must install before Copilot CLI (npm-based).
-    // Language runtimes before Node so PATH ordering is consistent.
-    // DinD last — it hooks the container entrypoint to start dockerd.
-    "overrideFeatureInstallOrder": [
-        "ghcr.io/devcontainers/features/dotnet",
-        "ghcr.io/devcontainers/features/python",
-        "ghcr.io/devcontainers/features/go",
-        "ghcr.io/devcontainers/features/java",
-        "ghcr.io/devcontainers/features/node",
-        "ghcr.io/devcontainers/features/copilot-cli",
-        "ghcr.io/devcontainers/features/docker-in-docker"
-    ],
-    // ======================== Filesystem Isolation ========================
-    "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
-    "workspaceFolder": "/workspace",
-    "mounts": [
-        // Named volume for NuGet cache — persists across rebuilds
-        {
-            "source": "devcontainer-nuget-${devcontainerId}",
-            "target": "/home/vscode/.nuget",
-            "type": "volume"
-        },
-        // Named volume for all Copilot data — keeps session DB, WAL files, logs, and
-        // command history off the macOS bind-mount layer (VirtioFS fsync is very slow).
-        // Host-managed Copilot skills are mounted read-only as inputs.
-        // postCreate.sh copies them into container-local active directories.
-        // If you change host skills/config and want the container-local loaded copies
-        // refreshed, rebuild the devcontainer.
-        {
-            "source": "devcontainer-copilot-data-${devcontainerId}",
-            "target": "/home/vscode/.copilot",
-            "type": "volume"
-        },
-        "type=bind,source=${localEnv:HOME}/.copilot/skills,target=/mnt/host-inputs/copilot-skills,readonly",
-        "type=bind,source=${localEnv:HOME}/.agents/skills,target=/mnt/host-inputs/agent-skills,readonly",
-        "type=bind,source=${localEnv:HOME}/.config/copilot-dev-skills,target=/mnt/host-inputs/copilot-dev-skills,readonly",
-        // Secrets file — bind-mounted read-only so setup can read values
-        // without exposing them as Docker env vars or allowing writes back to the host.
-        "type=bind,source=${localEnv:HOME}/.config/dev/dev.env,target=/run/secrets/dev.env,readonly"
-    ],
-    // ======================== Runtime ========================
-    // Secrets are NOT passed as Docker env vars — doing so stores them in the container
-    // config and makes them visible via `docker inspect` / Docker Desktop Inspect tab.
-    // Instead, /run/secrets/dev.env is bind-mounted read-only and sourced by setup.
-    "init": true,
-    "initializeCommand": "node .devcontainer/initialize-host-paths.mjs",
-    "remoteUser": "vscode",
-    "containerEnv": {
-        "DOTNET_NOLOGO": "true",
-        "DOTNET_CLI_TELEMETRY_OPTOUT": "1",
-    },
-    // ======================== VS Code Extensions ========================
-    "customizations": {
-        "vscode": {
-            "extensions": [
-                "GitHub.copilot",
-                "GitHub.copilot-chat",
-                "ms-dotnettools.csdevkit",
-                "ms-dotnettools.csharp",
-                "ms-azuretools.vscode-docker"
-            ]
-        }
-    },
-    // ======================== Lifecycle ========================
-    "postCreateCommand": "bash .devcontainer/postCreate.sh",
-    // ======================== Port Forwarding ========================
-    // runArgs publishes the port to the host at the Docker level — works regardless of IDE.
-    // forwardPorts is kept for VS Code's port forwarding panel / automatic browser open.
-    // --dns 8.8.8.8: bypasses Docker Desktop's slow internal DNS resolver on macOS.
-    "runArgs": ["-p", "5300:5300", "-p", "5301:5301", "-p", "5302:5302", "--dns", "8.8.8.8"],
-    "forwardPorts": [5300, 5301, 5302],
-    // ======================== Host Requirements ========================
-    // Universal image is large (~10 GB); allocate accordingly.
-    "hostRequirements": {
-        "cpus": 4,
-        "memory": "8gb",
-        "storage": "32gb"
-    }
+    // Language runtimes
+    "ghcr.io/devcontainers/features/dotnet:2": { "version": "latest" },
+    "ghcr.io/devcontainers/features/python:1": { "version": "latest" },
+    "ghcr.io/devcontainers/features/go:1": { "version": "latest" },
+    "ghcr.io/devcontainers/features/java:1": { "version": "latest" },
+    // GitHub Copilot CLI — official devcontainers feature
+    "ghcr.io/devcontainers/features/copilot-cli:1": {}
+  },
+  // Node.js must install before Copilot CLI (npm-based).
+  // DinD last — it hooks the container entrypoint to start dockerd.
+  "overrideFeatureInstallOrder": [
+    "ghcr.io/devcontainers/features/dotnet",
+    "ghcr.io/devcontainers/features/python",
+    "ghcr.io/devcontainers/features/go",
+    "ghcr.io/devcontainers/features/java",
+    "ghcr.io/devcontainers/features/node",
+    "ghcr.io/devcontainers/features/copilot-cli",
+    "ghcr.io/devcontainers/features/docker-in-docker"
+  ],
+  // ======================== Filesystem Isolation ========================
+  "workspaceMount": "source=${localWorkspaceFolder},target=${localWorkspaceFolder},type=bind,consistency=cached",
+  "workspaceFolder": "${localWorkspaceFolder}",
+  "mounts": [
+    "source=${localEnv:HOME}/.nuget/packages,target=${localEnv:HOME}/.nuget/packages,type=bind,consistency=cached",
+    "source=${localEnv:HOME}/.copilot,target=/home/vscode/.copilot,type=bind,consistency=cached",
+    // Secrets file — bind-mounted read-only so postCreate.sh can source it
+    // without ever passing secrets as Docker env vars (-e flags).
+    "type=bind,source=${localEnv:HOME}/.config/dev/dev.env,target=/run/secrets/dev.env,readonly"
+  ],
+  // ======================== Runtime ========================
+  // Secrets are NOT passed as Docker env vars — doing so stores them in the container
+  // config and makes them visible via `docker inspect` / Docker Desktop Inspect tab.
+  // Instead, ~/.config/dev/dev.env is bind-mounted read-only to /run/secrets/dev.env and processed by postCreate.sh.
+  "init": true,
+  "initializeCommand": "node .devcontainer/initialize-host-paths.mjs",
+  "remoteUser": "vscode",
+  "containerEnv": {
+    "DOTNET_NOLOGO": "true",
+    "DOTNET_CLI_TELEMETRY_OPTOUT": "1",
+    "NUGET_PACKAGES": "${localEnv:HOME}/.nuget/packages"
+  },
+
+  // runArgs publishes the port to the host at the Docker level — works regardless of IDE.
+  // forwardPorts is kept for VS Code's port forwarding panel / automatic browser open.
+  "runArgs": [
+    "-p",
+    "5300:5300",
+    "-p",
+    "5301:5301",
+    "-p",
+    "5302:5302"
+  ],
+  "forwardPorts": [5300, 5301, 5302],
+  // ======================== Lifecycle ========================
+  "postCreateCommand": "bash .devcontainer/postCreate.sh",
+  // ======================== Host Requirements ========================
+  "hostRequirements": {
+    "cpus": 4,
+    "memory": "8gb",
+    "storage": "32gb"
+  }
 }

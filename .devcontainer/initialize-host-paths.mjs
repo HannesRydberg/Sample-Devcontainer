@@ -6,9 +6,8 @@ import path from "node:path";
 const home = os.homedir();
 const requiredPaths = [
   path.join(home, ".config", "dev"),
-  path.join(home, ".copilot", "skills"),
-  path.join(home, ".agents", "skills"),
-  path.join(home, ".config", "copilot-dev-skills"),
+  path.join(home, ".copilot"),
+  path.join(home, ".nuget", "packages"),
 ];
 
 for (const p of requiredPaths) {
