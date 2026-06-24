@@ -46,11 +46,16 @@
     "ghcr.io/devcontainers/features/docker-in-docker"
   ],
   // ======================== Filesystem Isolation ========================
-  "workspaceMount": "source=${localWorkspaceFolder},target=${localWorkspaceFolder},type=bind,consistency=cached",
-  "workspaceFolder": "${localWorkspaceFolder}",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/${localWorkspaceFolderBasename},type=bind,consistency=cached",
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
   "mounts": [
-    "source=${localEnv:HOME}/.nuget/packages,target=${localEnv:HOME}/.nuget/packages,type=bind,consistency=cached",
-    "source=${localEnv:HOME}/.copilot,target=/home/vscode/.copilot,type=bind,consistency=cached",
+    // ── NuGet: shared host cache only ──
+    "source=${localEnv:HOME}/.nuget/packages,target=/home/vscode/.nuget/packages,type=bind,consistency=cached",
+     // ── Copilot: shared host skills and agents only ──
+    // Keep the rest of ~/.copilot container-local so auth, session data,
+    // logs, settings, and instructions do not leak between host and container.
+    "source=${localEnv:HOME}/.copilot/skills,target=/home/vscode/.copilot/skills,type=bind,consistency=cached",
+    "source=${localEnv:HOME}/.copilot/agents,target=/home/vscode/.copilot/agents,type=bind,consistency=cached",
     // Secrets file — bind-mounted read-only so postCreate.sh can source it
     // without ever passing secrets as Docker env vars (-e flags).
     "type=bind,source=${localEnv:HOME}/.config/dev/dev.env,target=/run/secrets/dev.env,readonly"
@@ -65,7 +70,7 @@
   "containerEnv": {
     "DOTNET_NOLOGO": "true",
     "DOTNET_CLI_TELEMETRY_OPTOUT": "1",
-    "NUGET_PACKAGES": "${localEnv:HOME}/.nuget/packages"
+    "NUGET_PACKAGES": "/home/vscode/.nuget/packages"
   },
 
   // runArgs publishes the port to the host at the Docker level — works regardless of IDE.
