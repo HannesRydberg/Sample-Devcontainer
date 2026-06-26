@@ -53,6 +53,9 @@ grep -q 'dev.env' "$HOME/.bashrc" 2>/dev/null \
     || echo 'if [ -f /run/secrets/dev.env ]; then set -a; source /run/secrets/dev.env; set +a; fi' \
         >> "$HOME/.bashrc"
 
+grep -q 'yolopilot' "$HOME/.bashrc" 2>/dev/null \
+    || echo "alias yolopilot='copilot --yolo --experimental'" >> "$HOME/.bashrc"
+
 echo ""
 echo "🔧 Running post-create setup..."
 echo ""
@@ -113,6 +116,47 @@ if ! command -v ast-grep >/dev/null 2>&1; then
     echo "   ✅ ast-grep $(ast-grep --version)"
 else
     echo "✅ ast-grep already installed"
+fi
+
+# ── Write / append tool-preference section to AGENTS.md ──────────────────────
+# AGENTS.md is read passively by Copilot CLI (and most other agents) at session
+# start — no skill invocation required. The template section is idempotent: it
+# is only appended when the sentinel comment is absent, so re-creating the
+# container never duplicates content. Existing content is never removed.
+AGENTS_MD="/workspace/AGENTS.md"
+AGENTS_TEMPLATE="/workspace/.devcontainer/AGENTS.md.template"
+AGENTS_SENTINEL="<!-- devcontainer:prefer-container-tools -->"
+if [ -f "$AGENTS_TEMPLATE" ]; then
+    if [ ! -f "$AGENTS_MD" ]; then
+        cp "$AGENTS_TEMPLATE" "$AGENTS_MD"
+        echo "✅ Created /workspace/AGENTS.md from template"
+    elif grep -qF "$AGENTS_SENTINEL" "$AGENTS_MD"; then
+        echo "✅ AGENTS.md already contains tool-preference section (skipping)"
+    else
+        printf '\n' >> "$AGENTS_MD"
+        cat "$AGENTS_TEMPLATE" >> "$AGENTS_MD"
+        echo "✅ Appended tool-preference section to existing AGENTS.md"
+    fi
+fi
+
+# ── Copy repo-bundled skills into ~/.copilot/skills ──────────────────────────
+# Skills placed under .devcontainer/skills/ are copied into the active skills
+# directory so they are available to agents without requiring manual host setup.
+REPO_SKILLS_DIR="/workspace/.devcontainer/skills"
+if [ -d "$REPO_SKILLS_DIR" ]; then
+    echo "📚 Installing repo-bundled skills..."
+    for skill_dir in "$REPO_SKILLS_DIR"/*/; do
+        skill_name="$(basename "$skill_dir")"
+        dest="$HOME/.copilot/skills/$skill_name"
+        if [ ! -d "$dest" ]; then
+            cp -r "$skill_dir" "$dest"
+            echo "   ✅ Installed skill: $skill_name"
+        else
+            echo "   ⏭  Skill already present (not overwriting): $skill_name"
+        fi
+    done
+else
+    echo "ℹ️  No repo-bundled skills found (skipping)"
 fi
 
 # ── Harden sudo (must be last — setup above still needs it) ──────────────────
