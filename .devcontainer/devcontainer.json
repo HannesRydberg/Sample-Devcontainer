@@ -46,8 +46,10 @@
     "ghcr.io/devcontainers/features/docker-in-docker"
   ],
   // ======================== Filesystem Isolation ========================
-  "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/${localWorkspaceFolderBasename},type=bind,consistency=cached",
-  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+  // Use a stable workspace path so feature postStart hooks don't fail on first start
+  // if /workspaces/<repo-name> is not present yet.
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
+  "workspaceFolder": "/workspace",
   "mounts": [
     // ── NuGet: shared host cache only ──
     "source=${localEnv:HOME}/.nuget/packages,target=/home/vscode/.nuget/packages,type=bind,consistency=cached",
@@ -77,13 +79,13 @@
   // forwardPorts is kept for VS Code's port forwarding panel / automatic browser open.
   "runArgs": [
     "-p",
-    "5300:5300",
+    "6300:6300",
     "-p",
-    "5301:5301",
+    "6301:6301",
     "-p",
-    "5302:5302"
+    "6302:6302"
   ],
-  "forwardPorts": [5300, 5301, 5302],
+  "forwardPorts": [6300, 6301, 6302],
   // ======================== Lifecycle ========================
   "postCreateCommand": "bash .devcontainer/postCreate.sh",
   // ======================== Host Requirements ========================

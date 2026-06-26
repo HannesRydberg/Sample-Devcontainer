@@ -2,6 +2,44 @@
 # .devcontainer/postCreate.sh
 set -euo pipefail
 
+retry_cmd() {
+    local max_attempts="$1"
+    shift
+    local attempt=1
+    local delay=2
+
+    while true; do
+        if "$@"; then
+            return 0
+        fi
+
+        if [ "$attempt" -ge "$max_attempts" ]; then
+            return 1
+        fi
+
+        echo "   ↻ Attempt ${attempt}/${max_attempts} failed; retrying in ${delay}s..."
+        sleep "$delay"
+        attempt=$((attempt + 1))
+        if [ "$delay" -lt 10 ]; then
+            delay=$((delay * 2))
+        fi
+    done
+}
+
+wait_for_dns() {
+    local host="$1"
+    local max_tries="$2"
+    local tries=0
+
+    while ! getent hosts "$host" >/dev/null 2>&1; do
+        tries=$((tries + 1))
+        if [ "$tries" -ge "$max_tries" ]; then
+            return 1
+        fi
+        sleep 1
+    done
+}
+
 # ── Load secrets ──────────────────────────────────────────────────────────────
 # Source the bind-mounted .env for this script and wire it into .bashrc so every
 # future terminal session picks it up too. No secret values are ever copied.
@@ -25,10 +63,18 @@ PACKAGE_ROOT="${NUGET_PACKAGES:-$HOME/.nuget/packages}"
 # ~/.copilot is bind-mounted directly from the host. Shared config and session
 # history — avoid running Copilot on host + container simultaneously to prevent
 # SQLite lock contention.
+# Ensure ~/.copilot root itself is writable by vscode. Feature install steps can
+# leave the directory root-owned, which makes `copilot` exit immediately.
+sudo mkdir -p "$HOME/.copilot"
+sudo chown vscode:vscode "$HOME/.copilot"
 echo "✅ Copilot directory ready (bind mount from host)"
 
 # ── Fix volume ownership ──────────────────────────────────────────────────────
 echo "🔑 Fixing volume ownership..."
+# Prevent noisy "sudo: unable to resolve host <container-id>" on fresh containers.
+if ! getent hosts "$(hostname)" >/dev/null 2>&1; then
+    echo "127.0.1.1 $(hostname)" | sudo tee -a /etc/hosts >/dev/null
+fi
 sudo mkdir -p "$HOME/.local/state"
 sudo chown -R vscode:vscode "$HOME/.local" 2>/dev/null || true
 mkdir -p "$PACKAGE_ROOT"
@@ -54,7 +100,16 @@ docker info >/dev/null 2>&1 && echo "   ✅ Docker daemon is running"
 # Dockerfile build time (the Node feature installs after the image build).
 if ! command -v ast-grep >/dev/null 2>&1; then
     echo "📦 Installing ast-grep..."
-    npm i -g @ast-grep/cli
+    if ! wait_for_dns registry.npmjs.org 30; then
+        echo "❌ DNS for registry.npmjs.org did not resolve within 30s."
+        echo "   Network was not ready during post-create; failing setup."
+        exit 1
+    fi
+    if ! retry_cmd 5 npm i -g @ast-grep/cli; then
+        echo "❌ Failed to install @ast-grep/cli after 5 attempts."
+        echo "   Last command: npm i -g @ast-grep/cli"
+        exit 1
+    fi
     echo "   ✅ ast-grep $(ast-grep --version)"
 else
     echo "✅ ast-grep already installed"
