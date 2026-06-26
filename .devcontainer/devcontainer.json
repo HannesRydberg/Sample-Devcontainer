@@ -87,7 +87,7 @@
   ],
   "forwardPorts": [6300, 6301, 6302],
   // ======================== Lifecycle ========================
-  "postCreateCommand": "bash .devcontainer/postCreate.sh",
+  "postCreateCommand": "sed 's/\\r$//' .devcontainer/postCreate.sh | bash",
   // ======================== Host Requirements ========================
   "hostRequirements": {
     "cpus": 4,
