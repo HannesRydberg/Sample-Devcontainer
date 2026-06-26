@@ -3,6 +3,8 @@
 # Universal image has no arm64 build; runtimes are installed via devcontainer features instead.
 FROM mcr.microsoft.com/devcontainers/base:ubuntu-24.04
 
+RUN mkdir -p /workspace
+
 # ── .NET 8 SDK (for legacy projects) ──────────────────────────────────────
 RUN curl -fsSL https://dot.net/v1/dotnet-install.sh -o /tmp/dotnet-install.sh \
     && bash /tmp/dotnet-install.sh --version 8.0.403 --install-dir /usr/share/dotnet \
