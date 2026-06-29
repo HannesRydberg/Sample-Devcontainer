@@ -155,3 +155,23 @@ For the common flow, run `dev-up` once to build and start the container, then `d
 ## Command reference
 
 See [`aliases.md`](./aliases.md) for the available convenience aliases.
+
+## Disclaimer
+
+By accessing, cloning, forking, copying, modifying, executing, or otherwise interacting with this repository in any way—including but not limited to curiously opening it in an editor—you acknowledge and agree that you are doing so entirely at your own risk and discretion. This repository is provided on an “as is,” “as available,” and occasionally “as inexplicably behaving” basis, without warranties of any kind, whether express or implied. You are explicitly free to use this repository however you see fit; however, any outcomes, consequences, or side effects of such use are solely and entirely your responsibility.
+
+The author disclaims all liability for any direct, indirect, incidental, consequential, or existential damages arising from the use of this repository. This includes, but is not limited to, broken builds, corrupted environments, lost code, delayed deadlines, production incidents, or uncomfortable conversations beginning with “so… quick question.” If something fails, misbehaves, or works in a way that inspires unjustified confidence, that remains your responsibility alone.
+
+Nothing in this repository constitutes or should be interpreted as legal, financial, medical, culinary, architectural, career, or life advice, nor as authoritative guidance on software engineering practices. Any resemblance to best practices is purely coincidental, aspirational, or the result of optimistic copy-pasting from more reputable sources. Users are strongly encouraged to apply independent judgment, critical thinking, and basic sanity checks before relying on anything contained herein.
+
+No guarantee is made that the repository functions correctly, consistently, or at all. In the unlikely event that something works perfectly, this should be considered a fortunate accident rather than an implicit promise. Conversely, if it does not work, that outcome should be considered fully compliant with the terms of this disclaimer.
+Use of this repository may result in side effects including, but not limited to, confusion, overconfidence, underconfidence, curiosity, frustration, or an increased tendency to say “it works on my machine.” The author assumes no responsibility for any such conditions, temporary or otherwise.
+
+By continuing, you represent that you are a consenting and reasonably capable individual engaging voluntarily with development tooling and agree to assume full responsibility for your actions and their consequences. If you are unsure what you are doing, that is entirely normal—but still not the author’s responsibility. If you are certain what you are doing, that is commendable—and still not the author’s responsibility.
+
+You further acknowledge that no support, maintenance, updates, or explanations are guaranteed, implied, or secretly planned. Any improvements, fixes, or clarifications that do occur should be regarded as acts of goodwill rather than obligation.
+
+This repository may be used, modified, redistributed, or ignored at your discretion, provided that you accept that all resulting outcomes—good, bad, or impressively strange—remain entirely your own.
+
+Finally, no representation or warranty is made that this repository adheres to any standards, conventions, design principles, architectural patterns, or even its own apparent internal logic. Any such alignment, if observed, should be treated as coincidental and not indicative of intent.
+
