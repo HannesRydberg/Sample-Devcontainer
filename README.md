@@ -56,7 +56,7 @@ On Windows the devcontainer runs inside WSL 2. Complete the steps below **once**
 A convenience script is provided that runs steps 2–4 for you:
 
 ```bash
-bash scripts/windows-wsl-setup.sh
+tr -d '\r' < scripts/windows-wsl-setup.sh | bash
 ```
 
 Or follow the steps manually:
