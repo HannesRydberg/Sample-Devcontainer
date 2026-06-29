@@ -44,26 +44,19 @@ A small starter repository for running GitHub Copilot CLI inside a reusable devc
 
 ## Prerequisites
 
-- Docker / Docker Desktop (Mac/Linux) — or Docker CE inside WSL 2 (Windows, see below)
+- Docker / Docker Desktop on Mac or Linux
+- Docker CE inside WSL 2 on Windows
 - Dev Containers CLI
-- Host Node.js runtime available (used by the devcontainer host bootstrap step)
+- Host Node.js runtime (used by the host bootstrap step)
 - A GitHub fine-grained PAT with `Copilot Requests`
 
 ## Windows (WSL) setup
 
-On Windows the devcontainer runs inside WSL 2. Complete the steps below **once** before following the Quick start guide, then run all commands from your WSL terminal.
-
-A convenience script is provided that runs steps 2–4 for you:
-
-```bash
-tr -d '\r' < scripts/windows-wsl-setup.sh | bash
-```
-
-Or follow the steps manually:
+Use this path if you are on Windows. The devcontainer runs inside WSL 2, so complete these steps once, then keep using your WSL terminal for the rest of the setup.
 
 ### 1. Install WSL
 
-Run the following in PowerShell (as administrator) and restart when prompted:
+Run this in PowerShell as administrator, then restart when prompted:
 
 ```powershell
 wsl --install
@@ -72,14 +65,12 @@ wsl --install
 ### 2. Install Docker CE inside WSL
 
 ```bash
-# Add Docker's official GPG key
 sudo apt update
 sudo apt install ca-certificates curl
 sudo install -m 0755 -d /etc/apt/keyrings
 sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
 sudo chmod a+r /etc/apt/keyrings/docker.asc
 
-# Add the Docker apt repository
 sudo tee /etc/apt/sources.list.d/docker.sources <<EOF
 Types: deb
 URIs: https://download.docker.com/linux/ubuntu
@@ -96,54 +87,82 @@ sudo apt install docker-ce docker-ce-cli containerd.io docker-buildx-plugin dock
 ### 3. Install Node.js
 
 ```bash
-# Install nvm
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.5/install.sh | bash
-
-# Load nvm without restarting the shell
 \. "$HOME/.nvm/nvm.sh"
-
-# Install Node.js 24
 nvm install 24
-
-# Enable pnpm
 corepack enable pnpm
 ```
 
 ### 4. Install WSL utilities
 
-`wslu` provides `wslvar` and `wslpath`, which the init script uses to locate your Windows user profile and link your Copilot skills and agents into the WSL home directory.
+Install `wslu` so the host bootstrap can find your Windows profile and link your Copilot folders:
 
 ```bash
 sudo apt install wslu
 ```
 
-After completing these steps, continue with the **Quick start** guide above.
+### 5. Run the Windows helper script
 
-### How skills and agents work on Windows
+This script completes the Docker, Node.js, and WSL utility setup:
 
-On Mac/Linux, `~/.copilot/skills` and `~/.copilot/agents` on the host are bind-mounted directly into the container.
-
-On Windows, those directories live in your Windows user profile (`%USERPROFILE%\.copilot\`). The `initialize-host-paths.mjs` script automatically detects WSL and creates symlinks in your WSL home that point to the Windows-side paths, so the same bind mounts work transparently without any changes to `devcontainer.json`:
-
-```
-~/.copilot/skills  →  /mnt/c/Users/<you>/.copilot/skills
-~/.copilot/agents  →  /mnt/c/Users/<you>/.copilot/agents
+```bash
+tr -d '\r' < scripts/windows-wsl-setup.sh | bash
 ```
 
-This requires `wslu` to be installed (step 4 above). If the script cannot find `wslvar` it will print an error and exit — install `wslu` and re-run `dev-up`.
+When that finishes, continue with the **Quick start** steps above.
+
+## Mac/Linux setup
+
+If you are on Mac or Linux, you do not need WSL. Install the shared prerequisites, then create the host directories once before starting the container.
+
+### 1. Install the shared prerequisites
+
+- Docker / Docker Desktop
+- Dev Containers CLI
+- Node.js 24 or newer
+
+Enable `pnpm` after installing Node.js:
+
+```bash
+corepack enable pnpm
+```
+
+### 2. Create the host paths
+
+Run the host bootstrap once to create the required directories:
+
+```bash
+node .devcontainer/initialize-host-paths.mjs
+```
+
+### 3. Create your secrets file
+
+The tracked `.env.example` file is only a template. Your real secrets file should live outside the repository at `~/.config/dev/dev.env`:
+
+```bash
+mkdir -p ~/.config/dev
+cp .env.example ~/.config/dev/dev.env
+```
+
+Edit `~/.config/dev/dev.env` and add your token. If you use GitHub Enterprise, add the host URL too.
+
+After that, continue with the **Quick start** steps above.
 
 ## Setup notes
 
-The tracked `.env.example` file is only a template. Your real secrets file should live outside the repository at `~/.config/dev/dev.env`.
+`~/.copilot/skills` and `~/.copilot/agents` are shared between the host and the container.
+
+- On Mac/Linux, they are bind-mounted directly from your home directory.
+- On Windows, they live under your Windows profile (`%USERPROFILE%\.copilot\`) and the host bootstrap creates WSL symlinks that point to those locations.
 
 Before the container starts, bind-mounted host paths must exist. The host bootstrap creates the needed directories automatically.
 
 If `~/.config/dev/dev.env` exists but does not contain a token yet, the container still starts, and you can authenticate Copilot CLI manually inside it.
 
-Opening this devcontainer executes `.devcontainer/initialize-host-paths.mjs` on the host via `initializeCommand`.
-Because this executes repository code on your host with your user permissions, only use this devcontainer setup with trusted code/branches.
+Opening this devcontainer executes `.devcontainer/initialize-host-paths.mjs` on the host via `initializeCommand`. Because this runs repository code on your host with your user permissions, only use this devcontainer setup with trusted code or branches.
 
 If host bootstrap cannot run, create these paths manually and retry:
+
 - `~/.config/dev`
 - `~/.copilot`
 - `~/.nuget/packages`
@@ -174,4 +193,3 @@ You further acknowledge that no support, maintenance, updates, or explanations a
 This repository may be used, modified, redistributed, or ignored at your discretion, provided that you accept that all resulting outcomes—good, bad, or impressively strange—remain entirely your own.
 
 Finally, no representation or warranty is made that this repository adheres to any standards, conventions, design principles, architectural patterns, or even its own apparent internal logic. Any such alignment, if observed, should be treated as coincidental and not indicative of intent.
-
