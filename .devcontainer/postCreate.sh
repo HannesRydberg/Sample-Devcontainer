@@ -46,11 +46,11 @@ wait_for_dns() {
 if [ -f /run/secrets/dev.env ]; then
     set -a
     # shellcheck source=/dev/null
-    source /run/secrets/dev.env
+    source <(sed 's/\r$//' /run/secrets/dev.env)
     set +a
 fi
 grep -q 'dev.env' "$HOME/.bashrc" 2>/dev/null \
-    || echo 'if [ -f /run/secrets/dev.env ]; then set -a; source /run/secrets/dev.env; set +a; fi' \
+    || echo 'if [ -f /run/secrets/dev.env ]; then set -a; source <(sed "s/\r$//" /run/secrets/dev.env); set +a; fi' \
         >> "$HOME/.bashrc"
 
 grep -q 'yolopilot' "$HOME/.bashrc" 2>/dev/null \
