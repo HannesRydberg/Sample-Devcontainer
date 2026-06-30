@@ -62,7 +62,7 @@ if (isWSL()) {
   } catch {
     console.error(
       "[devcontainer:init] ERROR: could not resolve Windows user profile.\n" +
-        "  Install wslu (`sudo apt install wslu`) and re-run `dev-up`."
+        "  Install wslu (`sudo apt install wslu`) or add a `wslvar` shim in ~/.local/bin, then re-run `dev-up`."
     );
     process.exit(1);
   }

@@ -24,11 +24,17 @@ Use this path if you are on Windows. The devcontainer runs inside WSL 2, so comp
 
 ### Windows quick start
 
-This script completes the Docker, Node.js, Dev Containers CLI, and WSL utility setup:
+1. Install WSL first (PowerShell as administrator), then restart when prompted:
 
-```bash
-tr -d '\r' < scripts/windows-wsl-setup.sh | bash
-```
+   ```powershell
+   wsl --install
+   ```
+
+2. In an Ubuntu WSL terminal, run the helper script. It installs Docker, Node.js, Dev Containers CLI, and WSL utilities:
+
+   ```bash
+   tr -d '\r' < scripts/windows-wsl-setup.sh | bash
+   ```
 
 After the script finishes:
 
@@ -102,7 +108,18 @@ corepack enable pnpm
 Install `wslu` so the host bootstrap can find your Windows profile and link your Copilot folders:
 
 ```bash
+sudo apt update
 sudo apt install wslu
+```
+
+If `wslu` is unavailable (for example on Ubuntu 26.04 right now), install a local `wslvar` shim instead:
+
+```bash
+mkdir -p ~/.local/bin
+printf '%s\n' '#!/usr/bin/env bash' 'cmd.exe /c "echo %$1%" | tr -d "\r"' > ~/.local/bin/wslvar
+chmod +x ~/.local/bin/wslvar
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
 ```
 
 When that finishes, run the **Windows quick start** steps above (create `~/.config/dev/dev.env`, load aliases, run `scripts/doctor.sh`, then run `dev-up`, `dev-bash`, and `copilot`).
