@@ -54,6 +54,17 @@ A small starter repository for running GitHub Copilot CLI inside a reusable devc
 
 Use this path if you are on Windows. The devcontainer runs inside WSL 2, so complete these steps once, then keep using your WSL terminal for the rest of the setup.
 
+
+### Windows helper script
+
+This script completes the Docker, Node.js, and WSL utility setup:
+
+```bash
+tr -d '\r' < scripts/windows-wsl-setup.sh | bash
+```
+
+If you prefer to do it manually, follow the steps below. Otherwise run the script, then continue with the quick setup.
+
 ### 1. Install WSL
 
 Run this in PowerShell as administrator, then restart when prompted:
@@ -99,14 +110,6 @@ Install `wslu` so the host bootstrap can find your Windows profile and link your
 
 ```bash
 sudo apt install wslu
-```
-
-### 5. Run the Windows helper script
-
-This script completes the Docker, Node.js, and WSL utility setup:
-
-```bash
-tr -d '\r' < scripts/windows-wsl-setup.sh | bash
 ```
 
 When that finishes, continue with the **Quick start** steps above.
