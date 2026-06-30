@@ -11,16 +11,19 @@
 #
 set -euo pipefail
 
-echo "==> Installing Docker CE"
-sudo apt update
-sudo apt install -y ca-certificates curl
+NODE_MAJOR_REQUIRED=24
 
-sudo install -m 0755 -d /etc/apt/keyrings
-sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
-  -o /etc/apt/keyrings/docker.asc
-sudo chmod a+r /etc/apt/keyrings/docker.asc
+install_docker_ce() {
+  echo "==> Installing Docker CE"
+  sudo apt update
+  sudo apt install -y ca-certificates curl
 
-sudo tee /etc/apt/sources.list.d/docker.sources > /dev/null <<EOF
+  sudo install -m 0755 -d /etc/apt/keyrings
+  sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
+    -o /etc/apt/keyrings/docker.asc
+  sudo chmod a+r /etc/apt/keyrings/docker.asc
+
+  sudo tee /etc/apt/sources.list.d/docker.sources > /dev/null <<EOF
 Types: deb
 URIs: https://download.docker.com/linux/ubuntu
 Suites: $(. /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}")
@@ -29,31 +32,63 @@ Architectures: $(dpkg --print-architecture)
 Signed-By: /etc/apt/keyrings/docker.asc
 EOF
 
-sudo apt update
-sudo apt install -y \
-  docker-ce docker-ce-cli containerd.io \
-  docker-buildx-plugin docker-compose-plugin
+  sudo apt update
+  sudo apt install -y \
+    docker-ce docker-ce-cli containerd.io \
+    docker-buildx-plugin docker-compose-plugin
+}
 
-echo "==> Installing Node.js via nvm"
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.5/install.sh | bash
+if command -v docker >/dev/null 2>&1 && docker --version >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
+  echo "==> Docker already installed, skipping"
+else
+  install_docker_ce
+fi
+
+export NVM_DIR="$HOME/.nvm"
+if [ ! -s "$NVM_DIR/nvm.sh" ]; then
+  echo "==> Installing nvm"
+  curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.5/install.sh | bash
+fi
 
 # Load nvm in this shell session without restarting
-export NVM_DIR="$HOME/.nvm"
 # shellcheck source=/dev/null
-\. "$NVM_DIR/nvm.sh"
+. "$NVM_DIR/nvm.sh"
 
-nvm install 24
+installed_node_major=""
+if command -v node >/dev/null 2>&1; then
+  installed_node_major="$(node -p 'process.versions.node.split(".")[0]')"
+fi
+
+if [ -n "$installed_node_major" ] && [ "$installed_node_major" -ge "$NODE_MAJOR_REQUIRED" ]; then
+  echo "==> Node.js $(node -v) already satisfies requirement (>= ${NODE_MAJOR_REQUIRED}), skipping"
+else
+  echo "==> Installing Node.js ${NODE_MAJOR_REQUIRED} via nvm"
+  nvm install "$NODE_MAJOR_REQUIRED"
+fi
+
+echo "==> Ensuring pnpm via corepack"
 corepack enable pnpm
 
-echo "==> Installing wslu (WSL utilities)"
-sudo apt install -y wslu
+if command -v devcontainer >/dev/null 2>&1; then
+  echo "==> Dev Containers CLI already installed ($(devcontainer --version)), skipping"
+else
+  echo "==> Installing Dev Containers CLI"
+  npm install -g @devcontainers/cli
+fi
+
+if command -v wslvar >/dev/null 2>&1; then
+  echo "==> wslu already installed, skipping"
+else
+  echo "==> Installing wslu (WSL utilities)"
+  sudo apt install -y wslu
+fi
 
 echo ""
-echo "All prerequisites installed."
-echo "Node $(node -v), pnpm $(pnpm -v), Docker $(docker --version)"
+echo "Prerequisite check complete."
+echo "Node $(node -v), pnpm $(pnpm -v), Docker $(docker --version), Dev Containers CLI $(devcontainer --version)"
 echo ""
 echo "Next steps:"
 echo "  1. Copy .env.example to ~/.config/dev/dev.env and add your GitHub PAT."
-echo "  2. Install the Dev Containers CLI: npm install -g @devcontainers/cli"
+echo "  2. Run: scripts/doctor.sh"
 echo "  3. Load the aliases from aliases.md."
 echo "  4. Run: dev-up"
