@@ -42,6 +42,15 @@ EOF
     echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.bashrc"
   fi
   export PATH="$HOME/.local/bin:$PATH"
+
+  local userprofile
+  userprofile="$(wslvar USERPROFILE 2>/dev/null || true)"
+  if [ -z "$userprofile" ]; then
+    echo "ERROR: wslvar is installed but USERPROFILE could not be resolved."
+    echo "Please verify this is a Windows-hosted WSL distro and re-run setup."
+    exit 1
+  fi
+  echo "==> Windows USERPROFILE resolved via wslvar"
 }
 
 install_docker_ce() {

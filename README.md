@@ -54,6 +54,8 @@ After the script finishes:
    scripts/doctor.sh
    ```
 
+   This now also runs the host bootstrap script (`.devcontainer/initialize-host-paths.mjs`) and prints its full error output if it fails.
+
 4. Start and enter the container, then launch Copilot:
 
    ```bash
