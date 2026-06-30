@@ -39,6 +39,20 @@ check_dir() {
   fi
 }
 
+check_initialize_host_paths() {
+  local log_file
+  log_file="$(mktemp)"
+  if node .devcontainer/initialize-host-paths.mjs >"$log_file" 2>&1; then
+    ok "Host bootstrap initialize script succeeded (.devcontainer/initialize-host-paths.mjs)"
+  else
+    fail "Host bootstrap initialize script failed (.devcontainer/initialize-host-paths.mjs)"
+    echo "----- initialize-host-paths output -----"
+    cat "$log_file"
+    echo "----- end initialize-host-paths output -----"
+  fi
+  rm -f "$log_file"
+}
+
 echo "==> Running setup preflight checks"
 
 check_command docker "Docker"
@@ -66,6 +80,14 @@ check_command pnpm "pnpm"
 if grep -qi microsoft /proc/version 2>/dev/null; then
   if command -v wslvar >/dev/null 2>&1; then
     ok "wslu installed (wslvar available)"
+    win_profile="$(wslvar USERPROFILE 2>/dev/null || true)"
+    if [ -z "$win_profile" ]; then
+      fail "wslvar is present but USERPROFILE could not be resolved"
+    elif command -v wslpath >/dev/null 2>&1 && wslpath "$win_profile" >/dev/null 2>&1; then
+      ok "Windows USERPROFILE resolves to a valid WSL path"
+    else
+      fail "Windows USERPROFILE did not convert to a valid WSL path via wslpath"
+    fi
   else
     fail "wslu missing (wslvar not found)"
   fi
@@ -85,6 +107,12 @@ if [ -f "$env_file" ]; then
   fi
 else
   fail "Secrets file missing: $env_file"
+fi
+
+if [ -f ".devcontainer/initialize-host-paths.mjs" ]; then
+  check_initialize_host_paths
+else
+  fail "Missing .devcontainer/initialize-host-paths.mjs (run doctor from repo root)"
 fi
 
 echo ""
