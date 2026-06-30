@@ -56,6 +56,13 @@ After the script finishes:
 
    This now also runs the host bootstrap script (`.devcontainer/initialize-host-paths.mjs`) and prints its full error output if it fails.
 
+   If Docker permission checks fail, add your WSL user to the `docker` group and refresh your shell:
+
+   ```bash
+   sudo usermod -aG docker "$USER"
+   newgrp docker
+   ```
+
 4. Start and enter the container, then launch Copilot:
 
    ```bash
@@ -63,6 +70,8 @@ After the script finishes:
    dev-bash
    copilot
    ```
+
+If `dev-up` fails with a generic error, run `dev-up-debug` to capture full trace logs and print the most relevant failure lines.
 
 If you prefer to do it manually, follow the steps below instead of running the helper script.
 
@@ -94,6 +103,13 @@ EOF
 
 sudo apt update
 sudo apt install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+```
+
+Allow your WSL user to run Docker without sudo:
+
+```bash
+sudo usermod -aG docker "$USER"
+newgrp docker
 ```
 
 #### 3. Install Node.js
@@ -200,6 +216,8 @@ If host bootstrap cannot run, create these paths manually and retry:
 ## Daily workflow
 
 For the common flow, run `dev-up` once to build and start the container, then `dev-bash` to open a shell inside it, and finally `copilot` to start the CLI.
+
+If startup fails, run `dev-up-debug`; it writes a full trace log to `~/.config/dev/logs/`.
 
 ## Command reference
 
