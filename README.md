@@ -58,7 +58,7 @@ After the script finishes:
 
 If you prefer to do it manually, follow the steps below instead of running the helper script.
 
-### 1. Install WSL
+#### 1. Install WSL
 
 Run this in PowerShell as administrator, then restart when prompted:
 
@@ -66,7 +66,7 @@ Run this in PowerShell as administrator, then restart when prompted:
 wsl --install
 ```
 
-### 2. Install Docker CE inside WSL
+#### 2. Install Docker CE inside WSL
 
 ```bash
 sudo apt update
@@ -88,7 +88,7 @@ sudo apt update
 sudo apt install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 ```
 
-### 3. Install Node.js
+#### 3. Install Node.js
 
 ```bash
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.5/install.sh | bash
@@ -97,7 +97,7 @@ nvm install 24
 corepack enable pnpm
 ```
 
-### 4. Install WSL utilities
+#### 4. Install WSL utilities
 
 Install `wslu` so the host bootstrap can find your Windows profile and link your Copilot folders:
 
