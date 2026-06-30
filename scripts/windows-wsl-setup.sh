@@ -13,6 +13,37 @@ set -euo pipefail
 
 NODE_MAJOR_REQUIRED=24
 
+ensure_wslvar() {
+  if command -v wslvar >/dev/null 2>&1; then
+    echo "==> wslvar already available, skipping"
+    return
+  fi
+
+  echo "==> Installing wslu (WSL utilities)"
+  sudo apt update
+  if sudo apt install -y wslu && command -v wslvar >/dev/null 2>&1; then
+    echo "==> wslu installed successfully"
+    return
+  fi
+
+  echo "==> wslu not available in apt repos; installing local wslvar shim"
+  mkdir -p "$HOME/.local/bin"
+  cat > "$HOME/.local/bin/wslvar" <<'EOF'
+#!/usr/bin/env bash
+if [ $# -ne 1 ]; then
+  echo "usage: wslvar <WINDOWS_ENV_VAR_NAME>" >&2
+  exit 2
+fi
+cmd.exe /c "echo %$1%" | tr -d '\r'
+EOF
+  chmod +x "$HOME/.local/bin/wslvar"
+
+  if ! grep -Fq 'export PATH="$HOME/.local/bin:$PATH"' "$HOME/.bashrc"; then
+    echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.bashrc"
+  fi
+  export PATH="$HOME/.local/bin:$PATH"
+}
+
 install_docker_ce() {
   echo "==> Installing Docker CE"
   sudo apt update
@@ -76,12 +107,7 @@ else
   npm install -g @devcontainers/cli
 fi
 
-if command -v wslvar >/dev/null 2>&1; then
-  echo "==> wslu already installed, skipping"
-else
-  echo "==> Installing wslu (WSL utilities)"
-  sudo apt install -y wslu
-fi
+ensure_wslvar
 
 echo ""
 echo "Prerequisite check complete."
