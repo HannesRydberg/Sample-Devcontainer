@@ -9,44 +9,11 @@ A small starter repository for running GitHub Copilot CLI inside a reusable devc
 - Automatic host-path bootstrap for `~/.config/dev`, `~/.copilot`, and `~/.nuget/packages`
 - A small set of aliases to make starting and entering the container faster
 
-## Quick start
-
-1. Create a GitHub fine-grained personal access token with the `Copilot Requests` permission.
-2. Create the host config directory and copy the example secrets file:
-
-   ```bash
-   mkdir -p ~/.config/dev
-   cp .env.example ~/.config/dev/dev.env
-   ```
-
-   The host bootstrap auto-creates the directories needed for secrets, Copilot data, and the shared NuGet cache before the container starts.
-
-3. Edit `~/.config/dev/dev.env` and add your token. If you use GitHub Enterprise, add the host URL too.
-4. Install the [Dev Containers CLI](https://github.com/devcontainers/cli).
-5. Load the aliases from [`aliases.md`](./aliases.md).
-6. Start the container:
-
-   ```bash
-   dev-up
-   ```
-
-7. Enter the container:
-
-   ```bash
-   dev-bash
-   ```
-
-8. Start Copilot CLI:
-
-   ```bash
-   copilot
-   ```
-
 ## Prerequisites
 
 - Docker / Docker Desktop on Mac or Linux
 - Docker CE inside WSL 2 on Windows
-- Dev Containers CLI
+- Dev Containers CLI (installed by the Windows helper script)
 - Host Node.js runtime (used by the host bootstrap step)
 - A GitHub fine-grained PAT with `Copilot Requests`
 
@@ -55,15 +22,41 @@ A small starter repository for running GitHub Copilot CLI inside a reusable devc
 Use this path if you are on Windows. The devcontainer runs inside WSL 2, so complete these steps once, then keep using your WSL terminal for the rest of the setup.
 
 
-### Windows helper script
+### Windows quick start
 
-This script completes the Docker, Node.js, and WSL utility setup:
+This script completes the Docker, Node.js, Dev Containers CLI, and WSL utility setup:
 
 ```bash
 tr -d '\r' < scripts/windows-wsl-setup.sh | bash
 ```
 
-If you prefer to do it manually, follow the steps below. Otherwise run the script, then continue with the quick setup.
+After the script finishes:
+
+1. Create and edit your secrets file:
+
+   ```bash
+   mkdir -p ~/.config/dev
+   cp .env.example ~/.config/dev/dev.env
+   ```
+
+   Add your GitHub fine-grained PAT with `Copilot Requests` to `~/.config/dev/dev.env`. If you use GitHub Enterprise, add the host URL too.
+
+2. Load the aliases from [`aliases.md`](./aliases.md).
+3. Run the setup preflight:
+
+   ```bash
+   scripts/doctor.sh
+   ```
+
+4. Start and enter the container, then launch Copilot:
+
+   ```bash
+   dev-up
+   dev-bash
+   copilot
+   ```
+
+If you prefer to do it manually, follow the steps below instead of running the helper script.
 
 ### 1. Install WSL
 
@@ -112,7 +105,7 @@ Install `wslu` so the host bootstrap can find your Windows profile and link your
 sudo apt install wslu
 ```
 
-When that finishes, continue with the **Quick start** steps above.
+When that finishes, run the **Windows quick start** steps above (create `~/.config/dev/dev.env`, load aliases, run `scripts/doctor.sh`, then run `dev-up`, `dev-bash`, and `copilot`).
 
 ## Mac/Linux setup
 
@@ -149,7 +142,22 @@ cp .env.example ~/.config/dev/dev.env
 
 Edit `~/.config/dev/dev.env` and add your token. If you use GitHub Enterprise, add the host URL too.
 
-After that, continue with the **Quick start** steps above.
+After that:
+
+1. Load the aliases from [`aliases.md`](./aliases.md).
+2. Run the setup preflight:
+
+   ```bash
+   scripts/doctor.sh
+   ```
+
+3. Start and enter the container, then launch Copilot:
+
+   ```bash
+   dev-up
+   dev-bash
+   copilot
+   ```
 
 ## Setup notes
 
