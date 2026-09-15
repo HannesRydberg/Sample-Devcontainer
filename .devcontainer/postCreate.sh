@@ -56,6 +56,12 @@ grep -q 'dev.env' "$HOME/.bashrc" 2>/dev/null \
 grep -q 'yolopilot' "$HOME/.bashrc" 2>/dev/null \
     || echo "alias yolopilot='copilot --yolo --experimental'" >> "$HOME/.bashrc"
 
+grep -q 'yoloclaude' "$HOME/.bashrc" 2>/dev/null \
+    || echo "alias yoloclaude='claude --dangerously-skip-permissions'" >> "$HOME/.bashrc"
+
+grep -q 'yolocodex' "$HOME/.bashrc" 2>/dev/null \
+    || echo "alias yolocodex='codex --dangerously-bypass-approvals-and-sandbox'" >> "$HOME/.bashrc"
+
 echo ""
 echo "🔧 Running post-create setup..."
 echo ""
@@ -71,6 +77,14 @@ PACKAGE_ROOT="${NUGET_PACKAGES:-$HOME/.nuget/packages}"
 sudo mkdir -p "$HOME/.copilot"
 sudo chown vscode:vscode "$HOME/.copilot"
 echo "✅ Copilot directory ready (bind mount from host)"
+
+# ── Prepare Claude Code ────────────────────────────────────────────────────
+# Mark onboarding as completed so the first `claude` launch skips the
+# interactive onboarding flow.
+mkdir -p "$HOME/.claude"
+[ -f "$HOME/.claude.json" ] || echo '{}' > "$HOME/.claude.json"
+jq '.hasCompletedOnboarding = true' "$HOME/.claude.json" > /tmp/c.json && mv /tmp/c.json "$HOME/.claude.json"
+echo "✅ Claude Code onboarding flag set"
 
 # ── Fix volume ownership ──────────────────────────────────────────────────────
 echo "🔑 Fixing volume ownership..."
@@ -116,6 +130,38 @@ if ! command -v ast-grep >/dev/null 2>&1; then
     echo "   ✅ ast-grep $(ast-grep --version)"
 else
     echo "✅ ast-grep already installed"
+fi
+
+# Codex CLI — OpenAI's coding agent, installed the same way as ast-grep.
+if ! command -v codex >/dev/null 2>&1; then
+    echo "📦 Installing Codex CLI..."
+    if ! wait_for_dns registry.npmjs.org 30; then
+        echo "❌ DNS for registry.npmjs.org did not resolve within 30s."
+        echo "   Network was not ready during post-create; failing setup."
+        exit 1
+    fi
+    if ! retry_cmd 5 npm i -g @openai/codex; then
+        echo "❌ Failed to install @openai/codex after 5 attempts."
+        echo "   Last command: npm i -g @openai/codex"
+        exit 1
+    fi
+    echo "   ✅ Codex CLI $(codex --version)"
+else
+    echo "✅ Codex CLI already installed"
+fi
+
+# ── Prepare Codex ─────────────────────────────────────────────────────────
+# If OPENAI_API_KEY is present in the bind-mounted secrets file, log Codex in
+# non-interactively so the first `codex` launch doesn't prompt for auth.
+# Skipped once ~/.codex/auth.json exists, so re-creating the container doesn't
+# re-run the login every time.
+if [ -n "${OPENAI_API_KEY:-}" ] && [ ! -f "$HOME/.codex/auth.json" ]; then
+    echo "🔑 Logging in to Codex CLI with OPENAI_API_KEY..."
+    if printenv OPENAI_API_KEY | codex login --with-api-key; then
+        echo "   ✅ Codex CLI authenticated"
+    else
+        echo "   ⚠️  Codex CLI login failed; run 'codex login' manually"
+    fi
 fi
 
 # ── Write / append tool-preference section to AGENTS.md ──────────────────────
@@ -181,6 +227,8 @@ echo "  ripgrep        : $(rg --version 2>/dev/null | head -1 || echo 'NOT FOUND
 echo "  fd / bat / jq  : $(fd --version 2>/dev/null | head -1 || echo 'NOT FOUND')"
 echo "  ast-grep       : $(ast-grep --version 2>/dev/null || echo 'NOT FOUND')"
 echo "  Copilot CLI    : $(copilot --version 2>/dev/null || echo 'run: copilot')"
+echo "  Claude Code    : $(claude --version 2>/dev/null || echo 'run: claude')"
+echo "  Codex CLI      : $(codex --version 2>/dev/null || echo 'run: codex')"
 echo "  NuGet packages : ${PACKAGE_ROOT}"
 echo "  Package path   : $([ -d "$PACKAGE_ROOT" ] && [ -w "$PACKAGE_ROOT" ] && echo 'writable' || echo 'NOT WRITABLE')"
 echo "══════════════════════════════════════════════════════════"
@@ -189,6 +237,8 @@ echo "📋 Quick Start"
 echo "  Verify DinD:           docker run --rm hello-world"
 echo "  NuGet auth:            dotnet restore"
 echo "  Copilot CLI:           copilot auth login"
+echo "  Claude Code:           claude"
+echo "  Codex CLI:             codex   (or: printenv OPENAI_API_KEY | codex login --with-api-key)"
 echo ""
 echo "💡 First time? On your Mac (one-time host setup):"
 echo "  node .devcontainer/initialize-host-paths.mjs"
