@@ -32,7 +32,9 @@
     "ghcr.io/devcontainers/features/go:1": { "version": "latest" },
     "ghcr.io/devcontainers/features/java:1": { "version": "latest" },
     // GitHub Copilot CLI — official devcontainers feature
-    "ghcr.io/devcontainers/features/copilot-cli:1": {}
+    "ghcr.io/devcontainers/features/copilot-cli:1": {},
+        // Claude Code — official Anthropic devcontainer feature
+    "ghcr.io/anthropics/devcontainer-features/claude-code:1": {}
   },
   // Node.js must install before Copilot CLI (npm-based).
   // DinD last — it hooks the container entrypoint to start dockerd.
@@ -43,6 +45,7 @@
     "ghcr.io/devcontainers/features/java",
     "ghcr.io/devcontainers/features/node",
     "ghcr.io/devcontainers/features/copilot-cli",
+    "ghcr.io/anthropics/devcontainer-features/claude-code",
     "ghcr.io/devcontainers/features/docker-in-docker"
   ],
   // ======================== Filesystem Isolation ========================
